@@ -1,2 +1,2 @@
 # Fooddo
-## <b>THE</b> food app
+## <b><i>THE</b></i> food app
