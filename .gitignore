@@ -13,4 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
-
+backend/password-db/target/
+backend/password-db/Cargo.lock
