@@ -1,96 +1,34 @@
 use std::io::{Write};
 use std::fs::{File, read_to_string, remove_file};
-use aws_config::meta::region::{RegionProviderChain};
+use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_dynamodb::{Client, Error, Region, PKG_VERSION};
 use aws_sdk_dynamodb::model::{AttributeValue};
-use aws_sdk_dynamodb::client::fluent_builders::Query;
+use aws_sdk_dynamodb::client::fluent_builders::{Query};
 use aws_sdk_dynamodb::output::QueryOutput;
 use aws_sdk_dynamodb::types::SdkError;
 use aws_sdk_dynamodb::error::QueryError;
 use std::process;
 use tokio_stream::StreamExt;
 
+/* DEBUG FUNCTIONS */
+
 /*
-debug function -- prints type of argument passed in as reference
+prints type of variable passed in via reference
 
 call: print_type(&your_variable)
 */
 fn print_type<T>(_: &T) {println!("{}", std::any::type_name::<T>());}
 
 /*
-debug function -- reads contents of file and returns as string
+!!! THIS IS VERY EXPENSIVE -- USE SPARINGLY AND ONLY WHEN NECCESSARY FOR DEBUGGING !!!
 
-returns contents of file on success else "file read error"
+lists all items in a table
+
+return:
+	success: None
+	error: Error
 */
-fn read_file(filename: &str) -> String {return read_to_string(filename).expect("file read error");}
-
-/*
-writes string (data) to file (filename)
-
-returns true if success else false
-*/
-fn write_file(data: &str, filename: &str) -> bool
-{
-	let mut file = File::create(filename).unwrap();
-	let res = writeln!(&mut file, "{}", data);
-	match res
-	{
-		Ok(_) => return true,
-		Err(e) => {
-			eprintln!("Error while writing to {}:\n{}", filename, e);
-			return false;
-		},
-	}
-}
-
-/*
-lists tables stored with keys stored in .aws/config
-
-return empty result on success else error
-*/
-async fn list_tables(client: &Client) -> std::result::Result<(), Error>
-{
-	let tables = client.list_tables().send().await?;
-	println!("Current tables:\n{:?}", tables);
-	Ok(())
-}
-
-/*
-add password object to table
-
-return empty result on success else error
-*/
-async fn add_item(
-	client: &Client,
-	table: &str,
-	user: &str,
-	password: &str,
-	email: &str
-) -> std::result::Result<(), Error>
-{
-	let user_av = AttributeValue::S(user.into());
-	let password_av = AttributeValue::S(password.into());
-	let email_av = AttributeValue::S(email.into());
-	let request = client
-		.put_item()
-		.table_name(table)
-		.item("user", user_av)
-		.item("password", password_av)
-		.item("email", email_av);
-	println!("Executing request {:?} to add item to {}", request, table);
-	request.send().await?;
-	println!("Added user {} with password {} and email {} to table", user, password, email);
-	Ok(())
-}
-
-/*
-debug -- lists all items in a table
-
-!!! NOTE: USE SPARINGLY, THIS IS VERY EXPENSIVE!!!
-
-returns empty result on success else error
-*/
-async fn test_scan(client: &Client, table: &str) -> std::result::Result<(), Error>
+async fn scan_table(client: &Client, table: &str) -> std::result::Result<(), Error>
 {
 	let items: Result<Vec<_>, _> = client
 		.scan()
@@ -106,39 +44,91 @@ async fn test_scan(client: &Client, table: &str) -> std::result::Result<(), Erro
 }
 
 /*
-debug -- adds test value to test table
+list tables client has access to
 
-FOR REFERENCE TO UNDERSTAND CODE ONLY
-
-adds SongTitle by Artist to test table Musician
+return:
+	success: empty
+	error: Error
 */
-async fn test(
+async fn list_tables(client: &Client) -> std::result::Result<(), Error>
+{
+	let tables = client.list_tables().send().await?;
+	println!("Current tables:\n{:?}", tables);
+	Ok(())
+}
+
+/* UTILITIES */
+
+/*
+reads contents of file filename into string
+
+return:
+	success: contents of file
+	error: "file read error"
+*/
+fn read_file(filename: &str) -> String {return read_to_string(filename).expect("file read error");}
+
+/*
+writes data to file filename
+
+return:
+	success: true
+	error: false
+*/
+fn write_file(data: &str, filename: &str) -> bool
+{
+	let mut file = File::create(filename).unwrap();
+	let res = writeln!(&mut file, "{}", data);
+	match res
+	{
+		Ok(_) => return true,
+		Err(e) => {
+			eprintln!("Error writing to file {}:\n{}", filename, e);
+			return false;
+		},
+	}
+}
+
+/* DATABASE FUNCTIONS */
+
+/*
+add user to User table
+
+return:
+	success: empty
+	error: Error
+*/
+async fn add_item(
 	client: &Client,
 	table: &str,
-	artist: &str,
-	song: &str
+	user: &str,
+	password: &str,
+	email: &str
 ) -> std::result::Result<(), Error>
 {
-	println!("In test()");
-	let art_av = AttributeValue::S(artist.into());
-	let song_av = AttributeValue::S(song.into());
+	let user_av = AttributeValue::S(user.into());
+	let pass_av = AttributeValue::S(password.into());
+	let email_av = AttributeValue::S(email.into());
 	let request = client
 		.put_item()
 		.table_name(table)
-		.item("Artist", art_av)
-		.item("SongTitle", song_av);
-	//println!("Executing request {:?} to add item to {}", request, table);
+		.item("User", user_av)
+		.item("Password", pass_av)
+		.item("Email", email_av);
+	println!("Executing request {:?} to add item to {}", request, table);
 	request.send().await?;
-	println!("Added artist {} with song {} to {}", artist, song, table);
+	println!("Added user {} to {}", user, table);
 	Ok(())
 }
 
 /*
-deletes an item from table
+!!! DOES NOT WORK IN CURRENT BUILD -- DO NOT CALL !!!
 
-!!! DOES NOT WORK IN CURRENT BUILD -- YOU CAN CALL IT BUT IT WILL NOT WORK !!!
+deletes item from table
 
-returns empty result on success else error
+return:
+	success: empty
+	error: Error
 */
 async fn delete_item(client: &Client, table: &str, key: &str, value: &str) -> std::result::Result<(), Error>
 {
@@ -151,7 +141,7 @@ async fn delete_item(client: &Client, table: &str, key: &str, value: &str) -> st
 	{
 		Ok(_) => println!("Deleted"),
 		Err(e) => {
-			eprintln!("Error:\n{}", e);
+			eprintln!("Error deleting item from {}:\n{}", table, e);
 			process::exit(-1);
 		},
 	}
@@ -159,87 +149,49 @@ async fn delete_item(client: &Client, table: &str, key: &str, value: &str) -> st
 }
 
 /*
-debug -- queries test table musician for SongTitles by Artist
+query users by email and write attributes to query.csv
 
-returns QueryOutput structure
+return:
+	success: true
+	error: false
 */
-async fn test_query(client: &Client, table: &str, artist: &str) -> QueryOutput
+async fn get_user_by_email(client: &Client, table: &str, email: &str) -> bool
 {
-	println!("in test_query()");
-	let req = client
+	let request = client
 		.query()
 		.table_name(table)
-		.key_condition_expression("Artist = :artist")
-		.expression_attribute_values(":artist", AttributeValue::S(artist.to_string()))
+		.key_condition_expression("Email = :email")
+		.expression_attribute_values(":email", AttributeValue::S(email.to_string()))
 		.send()
 		.await;
-	match req
+	match request
 	{
-		Ok(_) => return req.unwrap(),
+		Ok(_) => {
+			let items = request.unwrap().items.unwrap();
+			let mut buffer: String = "".to_string().to_owned();
+			for item in items
+			{
+				buffer.push_str(item["Email"].as_s().unwrap());
+				buffer.push_str(",");
+				buffer.push_str(item["User"].as_s().unwrap());
+				buffer.push_str(",");
+				buffer.push_str(item["Password"].as_s().unwrap());
+				buffer.push_str(",");
+			}
+			write_file(&buffer, "query.csv");
+			return true;
+		},
 		Err(e) => {
 			eprintln!("{}", e);
-			process::exit(-1);
+			return false;
 		},
 	}
-	//dbg!(req);
-	//println!("debug test_query: {:?}", dbg!(req));
 }
 
-// main function
+// main
 #[tokio::main]
-async fn main() -> std::result::Result<(), Error>
+async fn main() -> std::io::Result<()>
 {
-	let region_provider = RegionProviderChain::first_try(Region::new("us-east-1"))
-		.or_default_provider()
-		.or_else(Region::new("us-east-1"));
-	println!();
-	let shared_config = aws_config::from_env().region(region_provider).load().await;
-	let client = Client::new(&shared_config);
-	list_tables(&client).await?;
-	test(
-		&client,
-		"Musician",
-		"No One You Know",
-		"Call Me Today"
-	).await?;
-	test(
-		&client,
-		"Musician",
-		"No One You Know",
-		"My Dog Spot"
-	).await?;
-	test(
-		&client,
-		"Musician",
-		"No One You Know",
-		"Somewhere Down The Road"
-	).await?;
-	test(
-		&client,
-		"Musician",
-		"The Acme Band",
-		"Still in Love"
-	).await?;
-	test(
-		&client,
-		"Musician",
-		"The Acme Band",
-		"Look Out, World"
-	).await?;
-	//test_scan(&client, "Musician").await?;
-	let q = test_query(
-		&client,
-		"Musician",
-		"The Acme Band"
-	);
-	let items = q.await.items.unwrap();
-	println!("{:?}", items);
-	let mut buffer: String = "".to_string().to_owned();
-	for item in items
-	{
-		buffer.push_str(item["SongTitle"].as_s().unwrap());
-		buffer.push_str("\n");
-	}
-	println!("buffer:\n{}", buffer);
+	//
 	Ok(())
 }
