@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{Write};
 use std::fs::{File, read_to_string, remove_file};
 use aws_config::meta::region::RegionProviderChain;
@@ -89,6 +90,17 @@ fn write_file(data: &str, filename: &str) -> bool
 	}
 }
 
+/*
+notifies user that arguments do not match function call and exits program
+
+EXIT CODE: -3
+*/
+fn arg_error(actual: usize, expected: i32)
+{
+	eprintln!("Argument error -- expected {} arguments and got {}", expected, actual);
+	process::exit(-3);
+}
+
 /* DATABASE FUNCTIONS */
 
 /*
@@ -129,6 +141,8 @@ deletes item from table
 return:
 	success: empty
 	error: Error
+
+EXIT CODE: -1
 */
 async fn delete_item(client: &Client, table: &str, key: &str, value: &str) -> std::result::Result<(), Error>
 {
@@ -150,6 +164,8 @@ async fn delete_item(client: &Client, table: &str, key: &str, value: &str) -> st
 
 /*
 query users by email and write attributes to query.csv
+
+if email not found, will write \n to file
 
 return:
 	success: true
@@ -176,7 +192,6 @@ async fn get_user_by_email(client: &Client, table: &str, email: &str) -> bool
 				buffer.push_str(item["User"].as_s().unwrap());
 				buffer.push_str(",");
 				buffer.push_str(item["Password"].as_s().unwrap());
-				buffer.push_str(",");
 			}
 			write_file(&buffer, "query.csv");
 			return true;
@@ -188,10 +203,69 @@ async fn get_user_by_email(client: &Client, table: &str, email: &str) -> bool
 	}
 }
 
-// main
+/*
+main
+
+EXIT CODE: -2, -4
+*/
 #[tokio::main]
 async fn main() -> std::io::Result<()>
 {
-	//
+	let region_provider = RegionProviderChain::first_try(Region::new("us-east-1"))
+		.or_default_provider()
+		.or_else(Region::new("us-east-1")); // this is a temp fix -- !!! FIX ME !!!
+	println!();
+	let shared_config = aws_config::from_env().region(region_provider).load().await;
+	let client = Client::new(&shared_config);
+	/*
+	args coming in:
+		[0]: function (add, delete, get, list, scan)
+		[1:n-1]: args for function
+	*/
+	let argv: Vec<String> = env::args().collect();
+	let argc = argv.len();
+	if argc == 1
+	{
+		eprintln!("No arguments provided");
+		process::exit(-2);
+	}
+	else if argc == 2 && argv[1] == "h"
+	{
+		println!(
+			"{}",
+			read_file("info.fdo")
+		);
+		process::exit(0);
+	}
+	let table = "User";
+	let fun = &argv[1];
+	if fun == "add"
+	{
+		if argc < 5 {arg_error(argc-1, 4);}
+		let user = &argv[2];
+		let password = &argv[3];
+		let email = &argv[4];
+		add_item(&client, table, user, password, email).await;
+	}
+	else if fun == "delete"
+	{
+		if argc < 4 {arg_error(argc-1, 3);}
+		let key = &argv[2];
+		let value = &argv[3];
+		delete_item(&client, table, key, value).await;
+	}
+	else if fun == "get"
+	{
+		if argc < 3 {arg_error(argc-1, 2);}
+		let email = &argv[2];
+		get_user_by_email(&client, table, email).await;
+	}
+	else if fun == "list" {list_tables(&client).await;}
+	else if fun == "scan" {scan_table(&client, table).await;}
+	else
+	{
+		eprintln!("{} is not a valid function. cargo run h for information", fun); // not implemented yet
+		process::exit(-4);
+	}
 	Ok(())
 }
