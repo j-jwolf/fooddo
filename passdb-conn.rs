@@ -134,8 +134,6 @@ async fn add_item(
 }
 
 /*
-!!! DOES NOT WORK IN CURRENT BUILD -- DO NOT CALL !!!
-
 deletes item from table
 
 return:
