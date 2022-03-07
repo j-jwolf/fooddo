@@ -13,6 +13,4 @@
 .externalNativeBuild
 .cxx
 local.properties
-backend/
-pass-copy.py
-prep.bat
+backend/password-db/target

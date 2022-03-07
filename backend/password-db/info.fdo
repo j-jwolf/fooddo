@@ -1,0 +1,13 @@
+cargo run:
+	add [username, password, email] -- create user with username, password and email
+		ex: cargo run add my_user my_password test@test.com
+	delete [key, value] -- remove value at key
+		ex: cargo run delete Email test@test.com
+	get [email] -- write user information to 'query.csv'
+		ex: cargo run get test@test.com
+	list -- list accessible tables
+		ex: cargo run list
+	scan -- list all items in User table (VERY EXPENSIVE -- USE ONLY WHEN NECESSARY FOR DEBUGGING)
+		ex: cargo run scan
+	dquery -- delete query.csv
+		ex: cargo run dquery
