@@ -262,6 +262,11 @@ async fn main() -> std::io::Result<()>
 	}
 	else if fun == "list" {list_tables(&client).await;}
 	else if fun == "scan" {scan_table(&client, table).await;}
+	else if fun == "dquery"
+	{
+		let filename = "query.csv";
+		if std::path::Path::new(filename).exists() {remove_file(filename);}
+	}
 	else
 	{
 		eprintln!("{} is not a valid function. cargo run h for information", fun); // not implemented yet
