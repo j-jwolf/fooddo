@@ -14,3 +14,4 @@
 .cxx
 local.properties
 backend/password-db/target
+backend/ref.rs

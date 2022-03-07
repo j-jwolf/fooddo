@@ -1,9 +1,8 @@
 # Fooddo
 ## <b><i>THE</b></i> food app
 
-# Notes
+## Contents
+1. Backend/
 
-### Password Database Connector (passdb-conn.rs)
-
-* This is a Rust program. You need to download rustup from <a href="http://www.rust-lang.org/tools/install">here</a> to run it.
-
+# 1. Backend/
+* This folder contains the backend files, including the password database connector and email verification script
