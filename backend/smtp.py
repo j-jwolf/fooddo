@@ -8,10 +8,22 @@ sender = "fooddoapp@outlook.com"
 password = "%k$0#XFm@X!jv4"
 serverName = "smtp-mail.outlook.com"
 
+# list of known email domains -- !!! MOVE TO FILE !!!
+domains = {
+	"outlook.com",
+	"gmail.com",
+	"hotmail.com",
+	"icloud.com",
+	"tutanota.com",
+	"noctrl.edu"
+}
+
+fn = "verify.fdo"
+
 def verifyEmails():
 	emails = []
 	for item in sys.argv:
-		if("@" in item and item.endswith(".com") or item.endswith(".edu")): emails.append(item)
+		if("@" in item and len(item.split("@")) == 2 and item.split("@")[-1] in domains): emails.append(item)
 	return emails
 def generateCode():
 	code = ""
@@ -44,4 +56,9 @@ if(len(sys.argv) == 1):
 	sys.exit()
 
 recipients = verifyEmails()
-for recipient in recipients: sendEmail(recipient)
+codeMap = {}
+for recipient in recipients:
+	code = sendEmail(recipient)
+	codeMap[recipient] = str(code)
+if(codeMap):
+	with open(fn, "w") as file: file.write(str(codeMap))
